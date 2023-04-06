@@ -771,11 +771,10 @@ PropagatorState::FrameState::IncrementIteration(TaggedNodeSeq* ready) {
   return next_iter;
 }
 
-bool PropagatorState::FrameState::CleanupIterations(IterationState* iter_state,
-                                                    TaggedNodeSeq* ready) {
+bool PropagatorState::FrameState::CleanupIterations(std::unique_ptr<IterationState>& iter_state, TaggedNodeSeq* ready) {
   int64_t curr_iter = iter_state->iter_num;
-  while (curr_iter <= iteration_count && IsIterationDone(iter_state)) {
-    delete iter_state;
+  while (curr_iter <= iteration_count && IsIterationDone(iter_state.get())) {
+    iter_state.reset(); // Release ownership of iter_state
     SetIteration(curr_iter, nullptr);
     --num_outstanding_iterations;
     ++curr_iter;
@@ -792,11 +791,12 @@ bool PropagatorState::FrameState::CleanupIterations(IterationState* iter_state,
     }
 
     if (curr_iter <= iteration_count) {
-      iter_state = GetIteration(curr_iter);
+      iter_state = std::make_unique<IterationState>(curr_iter);
     }
   }
   return IsFrameDone();
 }
+
 
 void PropagatorState::FrameState::InitializeFrameInfo(
     const ImmutableExecutorState::FrameInfo& finfo) {
